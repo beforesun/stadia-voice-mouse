@@ -1,0 +1,67 @@
+# Stadia Voice Mouse for macOS
+
+Use a Stadia Controller running its original **Wi-Fi firmware** as a mouse and a push-to-talk voice input controller on macOS. [Stadiacast](https://github.com/jkfran/stadiacast) supplies the controller's input events and microphone audio. This small Swift program reads Stadiacast's local `/_events` stream and sends macOS mouse and keyboard events.
+
+## Controls
+
+| Controller | macOS |
+| --- | --- |
+| Left stick | Move pointer; radial deadzone and acceleration |
+| Right stick up/down | Scroll |
+| A | Left mouse button (hold to drag) |
+| B | Right mouse button |
+| Assistant, held | Hold the configured voice shortcut; Stadiacast separately opens the controller's built-in microphone |
+
+The program releases all mouse and keyboard buttons when Stadiacast disconnects or input becomes stale. It uses the first connected controller by default; `--controller c0` selects one explicitly.
+
+## Requirements
+
+- macOS 13 or later (Apple Silicon or Intel), Swift 6 toolchain for building.
+- Stadia Controller with original Wi-Fi firmware. Stadiacast does **not** work with the Bluetooth gamepad firmware. Consult its documentation before considering any firmware change.
+- [Stadiacast](https://github.com/jkfran/stadiacast) running on the Mac, with its network/DNS setup completed.
+- `ffmpeg` and `BlackHole 16ch` for the microphone path, as described by Stadiacast.
+- A voice input app such as Doubao that can use `BlackHole 16ch` and has a hold-to-talk keyboard shortcut.
+
+## Setup
+
+1. Follow [Stadiacast's network setup](https://github.com/jkfran/stadiacast/blob/main/docs/setup.md#network) so the controller connects to the receiver on your Mac. The Mac or its hotspot must be the controller's DNS server. This is more than ordinary Bluetooth pairing.
+2. Install Stadiacast's audio dependencies and BlackHole 16ch. Start Stadiacast with microphone push-to-talk and virtual input enabled:
+
+   ```sh
+   stadiacast --preset live --dns-upstream YOUR_ROUTER_IP --mic ptt --mic-device
+   ```
+
+   `YOUR_ROUTER_IP` is the upstream DNS server reachable by the Mac. See Stadiacast's guide for alternate LAN arrangements. Verify the Mac sees the Stadiacast event endpoint and the controller's Assistant button:
+
+   ```sh
+   curl -N http://127.0.0.1/_events
+   ```
+
+3. Set Doubao's microphone to **BlackHole 16ch**. Configure its *hold-to-talk* shortcut to **right Option**. If Doubao's version does not accept this virtual microphone or the synthetic shortcut, this integration needs a different trigger; Stadiacast's microphone can still be tested in Voice Memos first. Avoid setting BlackHole as the Mac's system output.
+4. Build and run the bridge:
+
+   ```sh
+   swift build -c release
+   .build/release/stadia-voice-mouse
+   ```
+
+   Grant **Accessibility** to Terminal (or the app used to launch the bridge) under System Settings → Privacy & Security → Accessibility, then relaunch it. The default shortcut sends right Option, macOS keycode `61`.
+5. Open a text field. Hold Assistant, wait for the controller's microphone light to blink (about 0.3 seconds), speak, then release. Verify the text appears in Doubao. Test A/B and both sticks separately.
+
+### Options
+
+```sh
+.build/release/stadia-voice-mouse --help
+.build/release/stadia-voice-mouse --controller c0 --voice-keycode 61 --speed 1250
+.build/release/stadia-voice-mouse --self-test
+```
+
+`--voice-keycode` is a macOS virtual key code. It must match Doubao's configured shortcut. `--dry-run` prints actions without injecting them or needing Accessibility. The bridge accepts only a local `--url` for the Stadiacast SSE endpoint.
+
+## What is verified
+
+The project compiles on macOS 15.8.2 with Swift 6.2. Its self-test covers SSE parsing, controller selection, joystick deadzone, and stale input. **The complete Wi-Fi controller → Stadiacast → BlackHole → Doubao chain has not been tested on a real controller or on an M4 Mac yet.** In particular, Doubao's response to the synthetic right Option shortcut remains an integration check, not a proven compatibility claim.
+
+## Credits and license
+
+Stadiacast is an independent project by [jkfran](https://github.com/jkfran/stadiacast), licensed under MIT. This bridge uses only its documented local HTTP event API and does not include its code. This repository is also MIT licensed.
