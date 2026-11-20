@@ -11,6 +11,7 @@ Use a Stadia Controller running its original **Wi-Fi firmware** as a mouse and a
 | A | Left mouse button (hold to drag) |
 | B | Right mouse button |
 | Assistant, held | Hold the configured voice shortcut; Stadiacast separately opens the controller's built-in microphone |
+| X, pressed after dictation | Tap Return to send the reviewed message in Telegram |
 
 The program releases all mouse and keyboard buttons when Stadiacast disconnects or input becomes stale. It uses the first connected controller by default; `--controller c0` selects one explicitly.
 
@@ -46,21 +47,21 @@ The program releases all mouse and keyboard buttons when Stadiacast disconnects 
    ```
 
    Grant **Accessibility** to Terminal (or the app used to launch the bridge) under System Settings → Privacy & Security → Accessibility, then relaunch it. The default shortcut sends right Option, macOS keycode `61`.
-5. Open a text field. Hold Assistant, wait for the controller's microphone light to blink (about 0.3 seconds), speak, then release. Verify the text appears in Doubao. Test A/B and both sticks separately.
+5. Open the Telegram chat with your bot. Use the left stick and A to focus its message field. Hold Assistant, wait for the controller's microphone light to blink (about 0.3 seconds), speak, then release. **Check the recognized text, then press X once to send it.** X is ignored while Assistant is held; it never sends automatically when dictation ends. Telegram must be configured so Return sends messages, and its message field must still have focus.
 
 ### Options
 
 ```sh
 .build/release/stadia-voice-mouse --help
-.build/release/stadia-voice-mouse --controller c0 --voice-keycode 61 --speed 1250
+.build/release/stadia-voice-mouse --controller c0 --voice-keycode 61 --send-keycode 36 --speed 1250
 .build/release/stadia-voice-mouse --self-test
 ```
 
-`--voice-keycode` is a macOS virtual key code. It must match Doubao's configured shortcut. `--dry-run` prints actions without injecting them or needing Accessibility. The bridge accepts only a local `--url` for the Stadiacast SSE endpoint.
+`--voice-keycode` is a macOS virtual key code. It must match Doubao's configured shortcut. `--send-keycode` defaults to Return (`36`); changing it changes what X sends. `--dry-run` prints actions without injecting them or needing Accessibility. The bridge accepts only a local `--url` for the Stadiacast SSE endpoint.
 
 ## What is verified
 
-The project compiles on macOS 15.8.2 with Swift 6.2. Its self-test covers SSE parsing, controller selection, joystick deadzone, and stale input. **The complete Wi-Fi controller → Stadiacast → BlackHole → Doubao chain has not been tested on a real controller or on an M4 Mac yet.** In particular, Doubao's response to the synthetic right Option shortcut remains an integration check, not a proven compatibility claim.
+The project compiles on macOS 15.8.2 with Swift 6.2. Its self-test covers SSE parsing, controller selection, joystick deadzone, stale input, and one-send-per-X-press behavior. **The complete Wi-Fi controller → Stadiacast → BlackHole → Doubao → Telegram chain has not been tested on a real controller or on an M4 Mac yet.** In particular, Doubao's response to the synthetic right Option shortcut remains an integration check, not a proven compatibility claim.
 
 ## Credits and license
 

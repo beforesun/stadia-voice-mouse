@@ -7,6 +7,7 @@ struct Options {
     var url = URL(string: "http://127.0.0.1/_events")!
     var controller: String?
     var voiceKeycode: CGKeyCode = 61 // right Option; set Doubao to the same hold shortcut
+    var sendKeycode: CGKeyCode = 36 // Return; Telegram sends the composed message
     var speed = 1250.0 // points per second at full left-stick deflection
     var dryRun = false
     var selfTest = false
@@ -19,7 +20,7 @@ struct Options {
             if flag == "--dry-run" { dryRun = true; i += 1; continue }
             if flag == "--self-test" { selfTest = true; i += 1; continue }
             if flag == "--help" {
-                print("Usage: stadia-voice-mouse [--url http://127.0.0.1/_events] [--controller c0] [--voice-keycode 61] [--speed 1250] [--dry-run] [--self-test]")
+                print("Usage: stadia-voice-mouse [--url http://127.0.0.1/_events] [--controller c0] [--voice-keycode 61] [--send-keycode 36] [--speed 1250] [--dry-run] [--self-test]")
                 exit(0)
             }
             guard i + 1 < args.count else { fatalError("Missing value for \(flag)") }
@@ -34,6 +35,9 @@ struct Options {
             case "--voice-keycode":
                 guard let number = UInt16(value) else { fatalError("Invalid voice keycode") }
                 voiceKeycode = number
+            case "--send-keycode":
+                guard let number = UInt16(value) else { fatalError("Invalid send keycode") }
+                sendKeycode = number
             case "--speed":
                 guard let number = Double(value), number > 0, number <= 4000 else { fatalError("Invalid speed") }
                 speed = number
@@ -52,6 +56,8 @@ struct Options {
     var leftDown = false
     var rightDown = false
     var voiceDown = false
+    var sendDown = false
+    var sendCount = 0
     var scrollRemainder = 0.0
 
     init(_ options: Options) { self.options = options }
@@ -91,6 +97,7 @@ struct Options {
         setMouse(.left, down: held.contains("a"))
         setMouse(.right, down: held.contains("b"))
         setVoice(down: held.contains("assistant"))
+        setSend(down: held.contains("x"))
     }
 
     func releaseAll() {
@@ -116,6 +123,15 @@ struct Options {
         voiceDown = down
         if options.dryRun { print("voice \(down ? "down" : "up")"); return }
         CGEvent(keyboardEventSource: nil, virtualKey: options.voiceKeycode, keyDown: down)?.post(tap: .cghidEventTap)
+    }
+
+    func setSend(down: Bool) {
+        defer { sendDown = down }
+        guard down && !sendDown && !voiceDown else { return }
+        sendCount += 1
+        if options.dryRun { print("send tap"); return }
+        CGEvent(keyboardEventSource: nil, virtualKey: options.sendKeycode, keyDown: true)?.post(tap: .cghidEventTap)
+        CGEvent(keyboardEventSource: nil, virtualKey: options.sendKeycode, keyDown: false)?.post(tap: .cghidEventTap)
     }
 }
 
@@ -169,7 +185,17 @@ if options.selfTest {
     precondition(testBridge.voiceDown && testBridge.leftDown)
     testBridge.releaseAll()
     precondition(!testBridge.voiceDown && !testBridge.leftDown)
-    print("PASS: SSE parsing, pad selection, deadzone, stale connection, button release")
+    let send = Data("{\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"last_seen_s\":0,\"input\":{\"held\":[\"x\"]}}}}".utf8)
+    testBridge.update(send)
+    testBridge.update(send)
+    precondition(testBridge.sendCount == 1)
+    testBridge.releaseAll()
+    testBridge.update(held)
+    let voiceAndSend = Data("{\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"last_seen_s\":0,\"input\":{\"held\":[\"assistant\",\"x\"]}}}}".utf8)
+    testBridge.update(voiceAndSend)
+    precondition(testBridge.sendCount == 1)
+    testBridge.releaseAll()
+    print("PASS: SSE parsing, pad selection, deadzone, stale connection, button release, send tap")
     exit(0)
 }
 if !options.dryRun && !AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary) {
