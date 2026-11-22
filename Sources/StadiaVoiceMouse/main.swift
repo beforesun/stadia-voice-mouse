@@ -8,6 +8,8 @@ struct Options {
     var controller: String?
     var voiceKeycode: CGKeyCode = 54 // right Command; set Doubao to the same hold shortcut
     var sendKeycode: CGKeyCode = 36 // Return; Telegram sends the composed message
+    var keyboardInput = "Built-in Microphone"
+    var controllerInput = "BlackHole 16ch"
     var speed = 1250.0 // points per second at full left-stick deflection
     var dryRun = false
     var selfTest = false
@@ -20,7 +22,7 @@ struct Options {
             if flag == "--dry-run" { dryRun = true; i += 1; continue }
             if flag == "--self-test" { selfTest = true; i += 1; continue }
             if flag == "--help" {
-                print("Usage: stadia-voice-mouse [--url http://127.0.0.1/_events] [--controller c0] [--voice-keycode 54] [--send-keycode 36] [--speed 1250] [--dry-run] [--self-test]")
+                print("Usage: stadia-voice-mouse [--url http://127.0.0.1/_events] [--controller c0] [--voice-keycode 54] [--send-keycode 36] [--keyboard-input NAME] [--controller-input NAME] [--speed 1250] [--dry-run] [--self-test]")
                 exit(0)
             }
             guard i + 1 < args.count else { fatalError("Missing value for \(flag)") }
@@ -40,6 +42,8 @@ struct Options {
             case "--send-keycode":
                 guard let number = UInt16(value) else { fatalError("Invalid send keycode") }
                 sendKeycode = number
+            case "--keyboard-input": keyboardInput = value
+            case "--controller-input": controllerInput = value
             case "--speed":
                 guard let number = Double(value), number > 0, number <= 4000 else { fatalError("Invalid speed") }
                 speed = number
@@ -58,11 +62,16 @@ struct Options {
     var leftDown = false
     var rightDown = false
     var voiceDown = false
+    var voicePosted = false
     var sendDown = false
     var sendCount = 0
     var scrollRemainder = 0.0
+    let audioInput: AudioInputSwitcher
 
-    init(_ options: Options) { self.options = options }
+    init(_ options: Options) {
+        self.options = options
+        audioInput = AudioInputSwitcher(controllerName: options.controllerInput, keyboardName: options.keyboardInput)
+    }
 
     func update(_ data: Data) {
         let next = selectedPad(from: data, controller: options.controller)
@@ -108,6 +117,11 @@ struct Options {
         scrollRemainder = 0
     }
 
+    func stop() {
+        releaseAll()
+        if !options.dryRun { _ = audioInput.useKeyboard() }
+    }
+
     enum MouseButton { case left, right }
     func setMouse(_ button: MouseButton, down: Bool) {
         let wasDown = button == .left ? leftDown : rightDown
@@ -124,7 +138,18 @@ struct Options {
         guard voiceDown != down else { return }
         voiceDown = down
         if options.dryRun { print("voice \(down ? "down" : "up")"); return }
-        voiceEvent(keycode: options.voiceKeycode, down: down)?.post(tap: .cghidEventTap)
+        if down {
+            guard audioInput.useController() else { return }
+            voicePosted = true
+            voiceEvent(keycode: options.voiceKeycode, down: true)?.post(tap: .cghidEventTap)
+        } else {
+            if voicePosted { voiceEvent(keycode: options.voiceKeycode, down: false)?.post(tap: .cghidEventTap) }
+            voicePosted = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self, !self.voiceDown else { return }
+                _ = self.audioInput.useKeyboard()
+            }
+        }
     }
 
     func setSend(down: Bool) {
@@ -223,10 +248,10 @@ stream.start()
 signal(SIGINT, SIG_IGN)
 signal(SIGTERM, SIG_IGN)
 let interrupt = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
-interrupt.setEventHandler { bridge.releaseAll(); exit(0) }
+interrupt.setEventHandler { bridge.stop(); exit(0) }
 interrupt.resume()
 let terminate = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
-terminate.setEventHandler { bridge.releaseAll(); exit(0) }
+terminate.setEventHandler { bridge.stop(); exit(0) }
 terminate.resume()
 Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { _ in
     Task { @MainActor in bridge.tick() }

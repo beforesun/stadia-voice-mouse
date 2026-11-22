@@ -38,7 +38,7 @@ The program releases all mouse and keyboard buttons when Stadiacast disconnects 
    curl -N http://MAC_LAN_IP/_events
    ```
 
-3. Set macOS's microphone input to **BlackHole 16ch**. Configure Doubao's *hold-to-talk* shortcut to **right Command**. Avoid setting BlackHole as the Mac's system output.
+3. Set macOS's microphone input to **Built-in Microphone**. Configure Doubao's voice shortcut to **right Command**. The bridge switches the default input to BlackHole 16ch while Assistant is held, then restores Built-in Microphone after release. Avoid setting BlackHole as the Mac's system output.
 4. Build and run the bridge:
 
    ```sh
@@ -53,7 +53,7 @@ The program releases all mouse and keyboard buttons when Stadiacast disconnects 
 
 ```sh
 .build/release/stadia-voice-mouse --help
-.build/release/stadia-voice-mouse --controller c0 --voice-keycode 54 --send-keycode 36 --speed 1250
+.build/release/stadia-voice-mouse --controller c0 --voice-keycode 54 --send-keycode 36 --keyboard-input 'Built-in Microphone' --controller-input 'BlackHole 16ch' --speed 1250
 .build/release/stadia-voice-mouse --self-test
 ```
 
