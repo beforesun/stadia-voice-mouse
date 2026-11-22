@@ -1,6 +1,6 @@
 # Stadia Voice Mouse for macOS
 
-Use a Stadia Controller running its original **Wi-Fi firmware** as a mouse and a push-to-talk voice input controller on macOS. [Stadiacast](https://github.com/jkfran/stadiacast) supplies the controller's input events and microphone audio. This small Swift program reads Stadiacast's local `/_events` stream and sends macOS mouse and keyboard events.
+Use a Stadia Controller running its original **Wi-Fi firmware** as a mouse and a voice input controller on macOS. [Stadiacast](https://github.com/jkfran/stadiacast) supplies the controller's input events and microphone audio. This small Swift program reads Stadiacast's local `/_events` stream and sends macOS mouse and keyboard events.
 
 ## Controls
 
@@ -10,7 +10,7 @@ Use a Stadia Controller running its original **Wi-Fi firmware** as a mouse and a
 | Right stick up/down | Scroll |
 | A | Left mouse button (hold to drag) |
 | B | Right mouse button |
-| Assistant, held | Hold the configured voice shortcut; Stadiacast separately opens the controller's built-in microphone |
+| Assistant, one press | Start Doubao dictation and the controller's built-in microphone; press again to stop |
 | X, pressed after dictation | Tap Return to send the reviewed message in Telegram |
 
 The program releases all mouse and keyboard buttons when Stadiacast disconnects or input becomes stale. It uses the first connected controller by default; `--controller c0` selects one explicitly.
@@ -21,7 +21,7 @@ The program releases all mouse and keyboard buttons when Stadiacast disconnects 
 - Stadia Controller with original Wi-Fi firmware. Stadiacast does **not** work with the Bluetooth gamepad firmware. Consult its documentation before considering any firmware change.
 - [Stadiacast](https://github.com/jkfran/stadiacast) running on the Mac, with its network/DNS setup completed.
 - `ffmpeg` and `BlackHole 16ch` for the microphone path, as described by Stadiacast.
-- A voice input app such as Doubao that can use `BlackHole 16ch` and has a hold-to-talk keyboard shortcut.
+- A voice input app such as Doubao that can use `BlackHole 16ch` and has a press-to-toggle keyboard shortcut.
 
 ## Setup
 
@@ -38,7 +38,7 @@ The program releases all mouse and keyboard buttons when Stadiacast disconnects 
    curl -N http://MAC_LAN_IP/_events
    ```
 
-3. Set macOS's microphone input to **Built-in Microphone**. Configure Doubao's voice shortcut to **right Command**. The bridge switches the default input to BlackHole 16ch while Assistant is held, then restores Built-in Microphone after release. Avoid setting BlackHole as the Mac's system output.
+3. Set macOS's microphone input to **Built-in Microphone**. Configure Doubao's voice shortcut to **right Command** in press-to-toggle mode. The bridge switches the default input to BlackHole 16ch when controller dictation starts, then restores Built-in Microphone when it ends. Avoid setting BlackHole as the Mac's system output.
 4. Build and run the bridge:
 
    ```sh
@@ -47,7 +47,7 @@ The program releases all mouse and keyboard buttons when Stadiacast disconnects 
    ```
 
    Grant **Accessibility** to Terminal (or the app used to launch the bridge) under System Settings → Privacy & Security → Accessibility, then relaunch it. The default shortcut sends right Command, macOS keycode `54`, as a macOS modifier-key event.
-5. Open the Telegram chat with your bot. Use the left stick and A to focus its message field. Hold Assistant, wait for the controller's microphone light to blink (about 0.3 seconds), speak, then release. **Check the recognized text, then press X once to send it.** X is ignored while Assistant is held; it never sends automatically when dictation ends. Telegram must be configured so Return sends messages, and its message field must still have focus.
+5. Open the Telegram chat with your bot. Use the left stick and A to focus its message field. Press Assistant once, wait for the controller's microphone to start, speak, then press Assistant again. **Check the recognized text, then press X once to send it.** X is ignored while dictation is active; it never sends automatically when dictation ends. Telegram must be configured so Return sends messages, and its message field must still have focus.
 
 ### Options
 

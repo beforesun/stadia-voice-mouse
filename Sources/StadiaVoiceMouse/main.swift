@@ -62,15 +62,20 @@ struct Options {
     var leftDown = false
     var rightDown = false
     var voiceDown = false
-    var voicePosted = false
+    var assistantDown = false
     var sendDown = false
     var sendCount = 0
     var scrollRemainder = 0.0
     let audioInput: AudioInputSwitcher
+    let micControl: MicControl
 
     init(_ options: Options) {
         self.options = options
         audioInput = AudioInputSwitcher(controllerName: options.controllerInput, keyboardName: options.keyboardInput)
+        micControl = MicControl(host: options.url.host ?? "127.0.0.1", port: UInt16(options.url.port ?? 80), controller: options.controller ?? "c0")
+        if !options.dryRun && !micControl.setPtt(false) {
+            fputs("Cannot disable Stadiacast push-to-talk. Voice toggle is unavailable.\n", stderr)
+        }
     }
 
     func update(_ data: Data) {
@@ -107,19 +112,24 @@ struct Options {
         let held = pad?.held ?? []
         setMouse(.left, down: held.contains("a"))
         setMouse(.right, down: held.contains("b"))
-        setVoice(down: held.contains("assistant"))
+        setAssistant(down: held.contains("assistant"))
         setSend(down: held.contains("x"))
     }
 
     func releaseAll() {
         pad = nil
+        assistantDown = false
+        if voiceDown { setVoice(active: false) }
         syncButtons()
         scrollRemainder = 0
     }
 
     func stop() {
         releaseAll()
-        if !options.dryRun { _ = audioInput.useKeyboard() }
+        if !options.dryRun {
+            _ = micControl.setMicrophone(false)
+            _ = audioInput.useKeyboard()
+        }
     }
 
     enum MouseButton { case left, right }
@@ -134,22 +144,42 @@ struct Options {
         CGEvent(mouseEventSource: nil, mouseType: eventType, mouseCursorPosition: location, mouseButton: cgButton)?.post(tap: .cghidEventTap)
     }
 
-    func setVoice(down: Bool) {
-        guard voiceDown != down else { return }
-        voiceDown = down
-        if options.dryRun { print("voice \(down ? "down" : "up")"); return }
-        if down {
-            guard audioInput.useController() else { return }
-            voicePosted = true
-            voiceEvent(keycode: options.voiceKeycode, down: true)?.post(tap: .cghidEventTap)
+    func setAssistant(down: Bool) {
+        guard assistantDown != down else { return }
+        assistantDown = down
+        if down { setVoice(active: !voiceDown) }
+    }
+
+    func setVoice(active: Bool) {
+        guard voiceDown != active else { return }
+        if options.dryRun {
+            voiceDown = active
+            print("voice \(active ? "on" : "off")")
+            return
+        }
+        if active {
+            guard audioInput.useController(), micControl.setPtt(false), micControl.setMicrophone(true) else {
+                fputs("Cannot start controller microphone; voice shortcut was not sent.\n", stderr)
+                _ = audioInput.useKeyboard()
+                return
+            }
+            voiceDown = true
+            tapVoiceShortcut()
         } else {
-            if voicePosted { voiceEvent(keycode: options.voiceKeycode, down: false)?.post(tap: .cghidEventTap) }
-            voicePosted = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            tapVoiceShortcut()
+            voiceDown = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
                 guard let self, !self.voiceDown else { return }
+                _ = self.micControl.setMicrophone(false)
                 _ = self.audioInput.useKeyboard()
             }
         }
+    }
+
+    func tapVoiceShortcut() {
+        voiceEvent(keycode: options.voiceKeycode, down: true)?.post(tap: .cghidEventTap)
+        usleep(80_000)
+        voiceEvent(keycode: options.voiceKeycode, down: false)?.post(tap: .cghidEventTap)
     }
 
     func setSend(down: Bool) {
@@ -223,6 +253,11 @@ if options.selfTest {
     let held = Data("{\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"last_seen_s\":0,\"input\":{\"held\":[\"assistant\",\"a\"]}}}}".utf8)
     testBridge.update(held)
     precondition(testBridge.voiceDown && testBridge.leftDown)
+    let released = Data("{\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"last_seen_s\":0,\"input\":{\"held\":[]}}}}".utf8)
+    testBridge.update(released)
+    precondition(testBridge.voiceDown && !testBridge.assistantDown)
+    testBridge.update(held)
+    precondition(!testBridge.voiceDown && testBridge.assistantDown)
     testBridge.releaseAll()
     precondition(!testBridge.voiceDown && !testBridge.leftDown)
     let send = Data("{\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"last_seen_s\":0,\"input\":{\"held\":[\"x\"]}}}}".utf8)
@@ -235,7 +270,7 @@ if options.selfTest {
     testBridge.update(voiceAndSend)
     precondition(testBridge.sendCount == 1)
     testBridge.releaseAll()
-    print("PASS: SSE parsing, pad selection, deadzone, stale connection, button release, send tap")
+    print("PASS: SSE parsing, pad selection, deadzone, stale connection, voice toggle, button release, send tap")
     exit(0)
 }
 if !options.dryRun && !AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary) {
