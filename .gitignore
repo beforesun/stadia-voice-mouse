@@ -1,3 +1,5 @@
 .build/
+.build-arm64/
 .swiftpm/
 .DS_Store
+dist/

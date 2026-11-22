@@ -17,7 +17,21 @@ Use a Stadia Controller running its original **Wi-Fi firmware** as a mouse and a
 
 L2 and R2 are analog triggers. They count as pressed above 160/255 and remain pressed until below 80/255, so a long pull sends one action. L1, R1, L3, R3, the D-pad, Menu, Options, and Stadia are not mapped by this bridge.
 
-The program releases all mouse and keyboard buttons when Stadiacast disconnects or input becomes stale. It uses the first connected controller by default; `--controller c0` selects one explicitly.
+The program releases all mouse and keyboard buttons when Stadiacast disconnects or input becomes stale. It uses the first connected controller by default; `--controller c0` selects one explicitly. The table above is the default profile; the settings window can change each button's action.
+
+## Graphical button settings
+
+Download the universal macOS settings app from [Releases](https://github.com/beforesun/stadia-voice-mouse/releases), or build it on a Mac with the Swift toolchain:
+
+```sh
+./scripts/build-settings-app.sh
+```
+
+To make one app bundle with both Intel and Apple Silicon code, use `./scripts/build-settings-app.sh --universal`.
+
+Then open `dist/Stadia Controller Settings.app` in Finder. Choose an action for each button and click **保存设置**. The running bridge reads the saved configuration within about one second; no code edit or restart is needed. The window also adjusts pointer and scroll speed, and **恢复默认** restores the profile in the table above after you save it.
+
+Settings are stored at `~/Library/Application Support/StadiaVoiceMouse/config.json`. The settings app changes button actions only; the Wi-Fi receiver, BlackHole, Doubao shortcut, and macOS Accessibility permission still need their normal setup. L2 and R2 are analog triggers with a press threshold. A configured mouse button stays held until the physical button is released; keyboard actions fire once per press. If multiple buttons use the same action, either one can trigger it.
 
 ## Requirements
 
@@ -65,7 +79,7 @@ The program releases all mouse and keyboard buttons when Stadiacast disconnects 
 
 ## What is verified
 
-The project compiles on macOS 15.8.2 with Swift 6.2. Its self-test covers SSE parsing, controller selection, joystick deadzone, stale input, and one-send-per-X-press behavior. On an Intel Mac, the Wi-Fi controller, Stadiacast, BlackHole, microphone recording, and live button mapping have been checked with a real controller. Doubao response to the synthetic right Command shortcut and Telegram sending still need a clear end-to-end confirmation; the M4 Mac has not been tested.
+The project compiles on macOS 15.8.2 with Swift 6.2. Its self-test covers SSE parsing, controller selection, joystick deadzone, stale input, and one-action-per-press behavior. The settings window opened on an Intel Mac and saved and restored a changed mapping. On that Mac, the Wi-Fi controller, Stadiacast, BlackHole, microphone recording, and live button mapping have been checked with a real controller. The M4 Mac has not been tested.
 
 ## Credits and license
 

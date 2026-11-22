@@ -13,6 +13,7 @@ struct Options {
     var speed = 1250.0 // points per second at full left-stick deflection
     var dryRun = false
     var selfTest = false
+    var showSettings = false
 
     init() {
         let args = Array(CommandLine.arguments.dropFirst())
@@ -21,8 +22,9 @@ struct Options {
             let flag = args[i]
             if flag == "--dry-run" { dryRun = true; i += 1; continue }
             if flag == "--self-test" { selfTest = true; i += 1; continue }
+            if flag == "--settings" { showSettings = true; i += 1; continue }
             if flag == "--help" {
-                print("Usage: stadia-voice-mouse [--url http://127.0.0.1/_events] [--controller c0] [--voice-keycode 54] [--send-keycode 36] [--keyboard-input NAME] [--controller-input NAME] [--speed 1250] [--dry-run] [--self-test]")
+                print("Usage: stadia-voice-mouse [--settings] [--url http://127.0.0.1/_events] [--controller c0] [--voice-keycode 54] [--send-keycode 36] [--keyboard-input NAME] [--controller-input NAME] [--speed 1250] [--dry-run] [--self-test]")
                 exit(0)
             }
             guard i + 1 < args.count else { fatalError("Missing value for \(flag)") }
@@ -70,11 +72,20 @@ struct Options {
     var captureDown = false
     var captureCount = 0
     var scrollRemainder = 0.0
+    var l2Down = false
+    var r2Down = false
+    var extraDown: [ButtonAction: Bool] = [:]
+    var config: AppConfig
+    var configStamp: Date?
+    var lastConfigCheck = Date.distantPast
     let audioInput: AudioInputSwitcher
     let micControl: MicControl
 
     init(_ options: Options) {
         self.options = options
+        config = AppConfig.load()
+        configStamp = (try? AppConfig.fileURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        if configStamp == nil { config.pointerSpeed = options.speed }
         audioInput = AudioInputSwitcher(controllerName: options.controllerInput, keyboardName: options.keyboardInput)
         micControl = MicControl(host: options.url.host ?? "127.0.0.1", port: UInt16(options.url.port ?? 80), controller: options.controller ?? "c0")
         if !options.dryRun && !micControl.setPtt(false) {
@@ -83,6 +94,7 @@ struct Options {
     }
 
     func update(_ data: Data) {
+        reloadConfig()
         let next = selectedPad(from: data, controller: options.controller)
         if next == nil { releaseAll() }
         pad = next
@@ -91,19 +103,20 @@ struct Options {
     }
 
     func tick() {
+        reloadConfig()
         let now = Date()
         let dt = min(0.05, max(0, now.timeIntervalSince(lastTick)))
         lastTick = now
         guard now.timeIntervalSince(lastUpdate) < 2.5, let pad else { releaseAll(); return }
         let (vx, vy) = stick(pad.lx, pad.ly)
         if vx != 0 || vy != 0, let location = CGEvent(source: nil)?.location {
-            let point = CGPoint(x: location.x + vx * options.speed * dt,
-                                y: location.y - vy * options.speed * dt)
+            let point = CGPoint(x: location.x + vx * config.pointerSpeed * dt,
+                                y: location.y - vy * config.pointerSpeed * dt)
             if options.dryRun { print("move \(Int(point.x)),\(Int(point.y))") }
             else { CGWarpMouseCursorPosition(point) }
         }
         let (_, sy) = stick(pad.rx, pad.ry)
-        scrollRemainder += sy * 28 * dt
+        scrollRemainder += sy * config.scrollSpeed * dt
         let lines = Int(scrollRemainder.rounded(.towardZero))
         if lines != 0 {
             scrollRemainder -= Double(lines)
@@ -114,12 +127,38 @@ struct Options {
 
     func syncButtons() {
         let held = pad?.held ?? []
-        setMouse(.left, down: held.contains("a"))
-        setMouse(.right, down: held.contains("b"))
-        setAssistant(down: held.contains("assistant") || triggerPressed(pad?.l2 ?? 0, wasDown: assistantDown))
-        setSend(down: held.contains("x") || triggerPressed(pad?.r2 ?? 0, wasDown: sendDown))
-        setDelete(down: held.contains("y"))
-        setCapture(down: held.contains("capture"))
+        l2Down = triggerPressed(pad?.l2 ?? 0, wasDown: l2Down)
+        r2Down = triggerPressed(pad?.r2 ?? 0, wasDown: r2Down)
+        setMouse(.left, down: active(.mouseLeft, held: held))
+        setMouse(.right, down: active(.mouseRight, held: held))
+        setAssistant(down: active(.voice, held: held))
+        setSend(down: active(.enter, held: held))
+        setDelete(down: active(.backspace, held: held))
+        setCapture(down: active(.screenshot, held: held))
+        for action in [ButtonAction.space, .escape, .tab, .arrowUp, .arrowDown, .arrowLeft, .arrowRight] {
+            setExtra(action, down: active(action, held: held))
+        }
+    }
+
+    func active(_ action: ButtonAction, held: Set<String>) -> Bool {
+        config.mappings.contains { button, mapped in
+            guard mapped == action else { return false }
+            if button == "l2" { return l2Down }
+            if button == "r2" { return r2Down }
+            return held.contains(button)
+        }
+    }
+
+    func reloadConfig() {
+        let now = Date()
+        guard now.timeIntervalSince(lastConfigCheck) >= 1 else { return }
+        lastConfigCheck = now
+        let stamp = (try? AppConfig.fileURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        guard stamp != configStamp else { return }
+        releaseAll()
+        config = AppConfig.load()
+        if stamp == nil { config.pointerSpeed = options.speed }
+        configStamp = stamp
     }
 
     func releaseAll() {
@@ -218,6 +257,15 @@ struct Options {
             event.post(tap: .cghidEventTap)
         }
     }
+
+    func setExtra(_ action: ButtonAction, down: Bool) {
+        let wasDown = extraDown[action] ?? false
+        extraDown[action] = down
+        guard down && !wasDown, let keycode = action.keycode else { return }
+        if options.dryRun { print("\(action.rawValue) tap"); return }
+        CGEvent(keyboardEventSource: nil, virtualKey: keycode, keyDown: true)?.post(tap: .cghidEventTap)
+        CGEvent(keyboardEventSource: nil, virtualKey: keycode, keyDown: false)?.post(tap: .cghidEventTap)
+    }
 }
 
 func voiceEvent(keycode: CGKeyCode, down: Bool) -> CGEvent? {
@@ -261,7 +309,17 @@ final class EventStream: NSObject, URLSessionDataDelegate, @unchecked Sendable {
 }
 
 let options = Options()
+if options.showSettings {
+    runSettingsWindow()
+    exit(0)
+}
 if options.selfTest {
+    let defaultConfig = AppConfig()
+    let encodedConfig = try! JSONEncoder().encode(defaultConfig)
+    let decodedConfig = try! JSONDecoder().decode(AppConfig.self, from: encodedConfig)
+    precondition(decodedConfig.mappings["l2"] == .voice)
+    precondition(decodedConfig.mappings["r2"] == .enter)
+    precondition(decodedConfig.mappings["capture"] == .screenshot)
     var parser = SSEParser()
     precondition(parser.feed("event: input\ndata: {\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"input\":{\"lx\":12000,\"ly\":0,\"held\":[\"assistant\"],\"age_s\":0}}}}").isEmpty)
     let events = parser.feed("\n\n")
