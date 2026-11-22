@@ -6,7 +6,7 @@ import Darwin
 struct Options {
     var url = URL(string: "http://127.0.0.1/_events")!
     var controller: String?
-    var voiceKeycode: CGKeyCode = 61 // right Option; set Doubao to the same hold shortcut
+    var voiceKeycode: CGKeyCode = 54 // right Command; set Doubao to the same hold shortcut
     var sendKeycode: CGKeyCode = 36 // Return; Telegram sends the composed message
     var speed = 1250.0 // points per second at full left-stick deflection
     var dryRun = false
@@ -20,14 +20,16 @@ struct Options {
             if flag == "--dry-run" { dryRun = true; i += 1; continue }
             if flag == "--self-test" { selfTest = true; i += 1; continue }
             if flag == "--help" {
-                print("Usage: stadia-voice-mouse [--url http://127.0.0.1/_events] [--controller c0] [--voice-keycode 61] [--send-keycode 36] [--speed 1250] [--dry-run] [--self-test]")
+                print("Usage: stadia-voice-mouse [--url http://127.0.0.1/_events] [--controller c0] [--voice-keycode 54] [--send-keycode 36] [--speed 1250] [--dry-run] [--self-test]")
                 exit(0)
             }
             guard i + 1 < args.count else { fatalError("Missing value for \(flag)") }
             let value = args[i + 1]
             switch flag {
             case "--url":
-                guard let parsed = URL(string: value), parsed.scheme == "http", parsed.host == "127.0.0.1" || parsed.host == "localhost" else {
+                guard let parsed = URL(string: value), parsed.scheme == "http",
+                      let host = parsed.host,
+                      host == "localhost" || Host.current().addresses.contains(host) else {
                     fatalError("--url must be a local HTTP address")
                 }
                 url = parsed
