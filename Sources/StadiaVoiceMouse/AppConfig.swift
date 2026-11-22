@@ -65,7 +65,7 @@ struct ControllerButton: Identifiable {
 struct AppConfig: Codable {
     var mappings: [String: ButtonAction] = [
         "a": .mouseLeft, "b": .mouseRight,
-        "x": .enter, "r2": .enter, "y": .backspace,
+        "x": .enter, "r2": .enter, "y": .backspace, "r1": .escape,
         "assistant": .voice, "l2": .voice, "capture": .screenshot,
     ]
     var pointerSpeed = 1250.0

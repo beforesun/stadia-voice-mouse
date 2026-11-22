@@ -247,7 +247,7 @@ struct Options {
 
     func setSend(down: Bool) {
         defer { sendDown = down }
-        guard down && !sendDown && !voiceDown else { return }
+        guard down && !sendDown else { return }
         sendCount += 1
         if options.dryRun { print("send tap"); return }
         CGEvent(keyboardEventSource: nil, virtualKey: options.sendKeycode, keyDown: true)?.post(tap: .cghidEventTap)
@@ -256,7 +256,7 @@ struct Options {
 
     func setDelete(down: Bool) {
         defer { deleteDown = down }
-        guard down && !deleteDown && !voiceDown else { return }
+        guard down && !deleteDown else { return }
         deleteCount += 1
         if options.dryRun { print("delete tap"); return }
         CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: true)?.post(tap: .cghidEventTap)
@@ -400,7 +400,10 @@ if options.selfTest {
     testBridge.update(held)
     let voiceAndSend = Data("{\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"last_seen_s\":0,\"input\":{\"held\":[\"assistant\",\"x\"]}}}}".utf8)
     testBridge.update(voiceAndSend)
-    precondition(testBridge.sendCount == 2)
+    precondition(testBridge.sendCount == 3)
+    testBridge.update(released)
+    testBridge.update(y)
+    precondition(testBridge.deleteCount == 2)
     testBridge.releaseAll()
     print("PASS: SSE parsing, pad selection, deadzone, trigger thresholds, stale connection, voice toggle, button release, send, delete and capture taps")
     exit(0)
