@@ -83,7 +83,7 @@ EOF
 <plist version="1.0"><dict>
   <key>Label</key><string>com.beforesun.stadia-bridge</string>
   <key>ProgramArguments</key><array>
-    <string>$bridge_binary</string>
+    <string>/usr/bin/open</string><string>-W</string><string>-a</string><string>$bridge_app</string><string>--args</string>
     <string>--url</string><string>http://$mac_ip/_events</string>
     <string>--controller</string><string>c0</string>
     <string>--voice-keycode</string><string>54</string>
@@ -106,6 +106,10 @@ if [ "${1:-}" = '--prepare' ]; then prepare; exit 0; fi
 if [ "${1:-}" = '--install-bridge' ]; then
   prepare
   mkdir -p "$bridge_app/Contents/MacOS" "$user_home/Library/LaunchAgents" "$user_home/Library/Logs/StadiaVoiceMouse"
+  launchctl bootout "gui/$user_id/com.beforesun.stadia-bridge" 2>/dev/null || true
+  for pid in $(pgrep -u "$user_id" -f "^$bridge_binary --url" || true); do
+    kill -TERM "$pid"
+  done
   cp "$project_dir/.build/release/stadia-voice-mouse" "$bridge_binary"
   cat > "$bridge_app/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -121,7 +125,6 @@ if [ "${1:-}" = '--install-bridge' ]; then
 EOF
   codesign --force --sign - "$bridge_app"
   cp "$stage_dir/com.beforesun.stadia-bridge.plist" "$agent_plist"
-  launchctl bootout "gui/$user_id/com.beforesun.stadia-bridge" 2>/dev/null || true
   launchctl bootstrap "gui/$user_id" "$agent_plist"
   echo "Installed bridge app at $bridge_app"
   exit
