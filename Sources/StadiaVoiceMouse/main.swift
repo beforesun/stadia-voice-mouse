@@ -65,6 +65,8 @@ struct Options {
     var assistantDown = false
     var sendDown = false
     var sendCount = 0
+    var deleteDown = false
+    var deleteCount = 0
     var scrollRemainder = 0.0
     let audioInput: AudioInputSwitcher
     let micControl: MicControl
@@ -114,6 +116,7 @@ struct Options {
         setMouse(.right, down: held.contains("b"))
         setAssistant(down: held.contains("assistant") || triggerPressed(pad?.l2 ?? 0, wasDown: assistantDown))
         setSend(down: held.contains("x") || triggerPressed(pad?.r2 ?? 0, wasDown: sendDown))
+        setDelete(down: held.contains("y"))
     }
 
     func releaseAll() {
@@ -189,6 +192,15 @@ struct Options {
         if options.dryRun { print("send tap"); return }
         CGEvent(keyboardEventSource: nil, virtualKey: options.sendKeycode, keyDown: true)?.post(tap: .cghidEventTap)
         CGEvent(keyboardEventSource: nil, virtualKey: options.sendKeycode, keyDown: false)?.post(tap: .cghidEventTap)
+    }
+
+    func setDelete(down: Bool) {
+        defer { deleteDown = down }
+        guard down && !deleteDown && !voiceDown else { return }
+        deleteCount += 1
+        if options.dryRun { print("delete tap"); return }
+        CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: true)?.post(tap: .cghidEventTap)
+        CGEvent(keyboardEventSource: nil, virtualKey: 51, keyDown: false)?.post(tap: .cghidEventTap)
     }
 }
 
@@ -282,13 +294,18 @@ if options.selfTest {
     testBridge.update(r2)
     testBridge.update(r2)
     precondition(testBridge.sendCount == 2)
+    testBridge.update(released)
+    let y = Data("{\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"last_seen_s\":0,\"input\":{\"held\":[\"y\"]}}}}".utf8)
+    testBridge.update(y)
+    testBridge.update(y)
+    precondition(testBridge.deleteCount == 1)
     testBridge.releaseAll()
     testBridge.update(held)
     let voiceAndSend = Data("{\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"last_seen_s\":0,\"input\":{\"held\":[\"assistant\",\"x\"]}}}}".utf8)
     testBridge.update(voiceAndSend)
     precondition(testBridge.sendCount == 2)
     testBridge.releaseAll()
-    print("PASS: SSE parsing, pad selection, deadzone, trigger thresholds, stale connection, voice toggle, button release, send tap")
+    print("PASS: SSE parsing, pad selection, deadzone, trigger thresholds, stale connection, voice toggle, button release, send and delete taps")
     exit(0)
 }
 if !options.dryRun && !AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary) {
