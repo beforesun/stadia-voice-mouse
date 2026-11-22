@@ -5,6 +5,8 @@ struct PadState: Equatable {
     var ly: Int = 0
     var rx: Int = 0
     var ry: Int = 0
+    var l2: Int = 0
+    var r2: Int = 0
     var held: Set<String> = []
 
     init(_ value: [String: Any]) {
@@ -12,6 +14,8 @@ struct PadState: Equatable {
         ly = value["ly"] as? Int ?? 0
         rx = value["rx"] as? Int ?? 0
         ry = value["ry"] as? Int ?? 0
+        l2 = value["l2"] as? Int ?? 0
+        r2 = value["r2"] as? Int ?? 0
         held = Set(value["held"] as? [String] ?? [])
     }
 
@@ -43,6 +47,10 @@ func stick(_ x: Int, _ y: Int, deadzone: Double = 0.16) -> (Double, Double) {
     guard radius > deadzone else { return (0, 0) }
     let magnitude = pow(min(1, (radius - deadzone) / (1 - deadzone)), 1.7)
     return (nx / radius * magnitude, ny / radius * magnitude)
+}
+
+func triggerPressed(_ value: Int, wasDown: Bool) -> Bool {
+    value >= (wasDown ? 80 : 160)
 }
 
 struct SSEParser {

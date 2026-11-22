@@ -10,8 +10,10 @@ Use a Stadia Controller running its original **Wi-Fi firmware** as a mouse and a
 | Right stick up/down | Scroll |
 | A | Left mouse button (hold to drag) |
 | B | Right mouse button |
-| Assistant, one press | Start Doubao dictation and the controller's built-in microphone; press again to stop |
-| X, pressed after dictation | Tap Return to send the reviewed message in Telegram |
+| Assistant or L2, one press | Start Doubao dictation and the controller's built-in microphone; press again to stop |
+| X or R2, pressed after dictation | Tap Return to send the reviewed message in Telegram |
+
+L2 and R2 are analog triggers. They count as pressed above 160/255 and remain pressed until below 80/255, so a long pull sends one action. Y, L1, R1, L3, R3, the D-pad, Menu, Options, Capture, and Stadia are not mapped by this bridge.
 
 The program releases all mouse and keyboard buttons when Stadiacast disconnects or input becomes stale. It uses the first connected controller by default; `--controller c0` selects one explicitly.
 
@@ -47,7 +49,7 @@ The program releases all mouse and keyboard buttons when Stadiacast disconnects 
    ```
 
    Grant **Accessibility** to Terminal (or the app used to launch the bridge) under System Settings → Privacy & Security → Accessibility, then relaunch it. The default shortcut sends right Command, macOS keycode `54`, as a macOS modifier-key event.
-5. Open the Telegram chat with your bot. Use the left stick and A to focus its message field. Press Assistant once, wait for the controller's microphone to start, speak, then press Assistant again. **Check the recognized text, then press X once to send it.** X is ignored while dictation is active; it never sends automatically when dictation ends. Telegram must be configured so Return sends messages, and its message field must still have focus.
+5. Open the Telegram chat with your bot. Use the left stick and A to focus its message field. Press Assistant or L2 once, wait for the controller's microphone to start, speak, then press Assistant or L2 again. **Check the recognized text, then press X or R2 once to send it.** Enter is ignored while dictation is active; it never sends automatically when dictation ends. Telegram must be configured so Return sends messages, and its message field must still have focus.
 
 ### Options
 
