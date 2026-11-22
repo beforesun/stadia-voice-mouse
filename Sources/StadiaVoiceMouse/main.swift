@@ -124,7 +124,7 @@ struct Options {
         guard voiceDown != down else { return }
         voiceDown = down
         if options.dryRun { print("voice \(down ? "down" : "up")"); return }
-        CGEvent(keyboardEventSource: nil, virtualKey: options.voiceKeycode, keyDown: down)?.post(tap: .cghidEventTap)
+        voiceEvent(keycode: options.voiceKeycode, down: down)?.post(tap: .cghidEventTap)
     }
 
     func setSend(down: Bool) {
@@ -135,6 +135,15 @@ struct Options {
         CGEvent(keyboardEventSource: nil, virtualKey: options.sendKeycode, keyDown: true)?.post(tap: .cghidEventTap)
         CGEvent(keyboardEventSource: nil, virtualKey: options.sendKeycode, keyDown: false)?.post(tap: .cghidEventTap)
     }
+}
+
+func voiceEvent(keycode: CGKeyCode, down: Bool) -> CGEvent? {
+    guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keycode, keyDown: down) else { return nil }
+    if keycode == 54 || keycode == 55 { // right or left Command
+        event.type = .flagsChanged
+        event.flags = down ? .maskCommand : []
+    }
+    return event
 }
 
 final class EventStream: NSObject, URLSessionDataDelegate, @unchecked Sendable {
@@ -177,6 +186,10 @@ if options.selfTest {
     precondition(selectedPad(from: events[0], controller: "c0")?.held.contains("assistant") == true)
     precondition(stick(1000, 1000).0 == 0)
     precondition(stick(30000, 0).0 > 0.5)
+    precondition(voiceEvent(keycode: 54, down: true)?.type == .flagsChanged)
+    precondition(voiceEvent(keycode: 54, down: true)?.flags.contains(.maskCommand) == true)
+    precondition(voiceEvent(keycode: 54, down: false)?.flags.contains(.maskCommand) == false)
+    precondition(voiceEvent(keycode: 36, down: true)?.type == .keyDown)
     let stale = Data("{\"controllers\":{\"c0\":{\"display_state\":\"ready\",\"last_seen_s\":6,\"input\":{\"age_s\":5}}}}".utf8)
     precondition(selectedPad(from: stale, controller: nil) == nil)
     var testOptions = Options()

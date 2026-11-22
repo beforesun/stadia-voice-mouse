@@ -46,7 +46,7 @@ The program releases all mouse and keyboard buttons when Stadiacast disconnects 
    .build/release/stadia-voice-mouse --url http://MAC_LAN_IP/_events
    ```
 
-   Grant **Accessibility** to Terminal (or the app used to launch the bridge) under System Settings → Privacy & Security → Accessibility, then relaunch it. The default shortcut sends right Command, macOS keycode `54`.
+   Grant **Accessibility** to Terminal (or the app used to launch the bridge) under System Settings → Privacy & Security → Accessibility, then relaunch it. The default shortcut sends right Command, macOS keycode `54`, as a macOS modifier-key event.
 5. Open the Telegram chat with your bot. Use the left stick and A to focus its message field. Hold Assistant, wait for the controller's microphone light to blink (about 0.3 seconds), speak, then release. **Check the recognized text, then press X once to send it.** X is ignored while Assistant is held; it never sends automatically when dictation ends. Telegram must be configured so Return sends messages, and its message field must still have focus.
 
 ### Options
