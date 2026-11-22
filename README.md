@@ -31,6 +31,8 @@ To make one app bundle with both Intel and Apple Silicon code, use `./scripts/bu
 
 Then open `dist/Stadia Controller Settings.app` in Finder. Choose an action for each button and click **保存设置**. The running bridge reads the saved configuration within about one second; no code edit or restart is needed. The window also adjusts pointer and scroll speed, and **恢复默认** restores the profile in the table above after you save it.
 
+The top of the window shows the local receiver, controller connection, microphone switch, and bridge process. It refreshes every five seconds and points to Wi-Fi/DNS, receiver, or audio device issues when it can identify one.
+
 Settings are stored at `~/Library/Application Support/StadiaVoiceMouse/config.json`. The settings app changes button actions only; the Wi-Fi receiver, BlackHole, Doubao shortcut, and macOS Accessibility permission still need their normal setup. L2 and R2 are analog triggers with a press threshold. A configured mouse button stays held until the physical button is released; keyboard actions fire once per press. If multiple buttons use the same action, either one can trigger it.
 
 ## Requirements
@@ -66,6 +68,18 @@ Settings are stored at `~/Library/Application Support/StadiaVoiceMouse/config.js
 
    Grant **Accessibility** to Terminal (or the app used to launch the bridge) under System Settings → Privacy & Security → Accessibility, then relaunch it. The default shortcut sends right Command, macOS keycode `54`, as a macOS modifier-key event.
 5. Open the Telegram chat with your bot. Use the left stick and A to focus its message field. Press Assistant or L2 once, wait for the controller's microphone to start, speak, then press Assistant or L2 again. **Check the recognized text, then press X or R2 once to send it.** Enter is ignored while dictation is active; it never sends automatically when dictation ends. Telegram must be configured so Return sends messages, and its message field must still have focus.
+
+### Background services on the tested Intel Mac
+
+The current Mac uses Ethernet `en0`, a Stadia Controller at `192.168.50.189`, and a router at `192.168.50.1`. After the basic setup works, run once:
+
+```sh
+./scripts/install-background-services.sh
+```
+
+This asks for a Mac administrator password in Terminal. It copies the Stadiacast Python runtime and ffmpeg into a root-owned location, tests BlackHole from a temporary launchd service on spare ports, then installs a system LaunchDaemon for Stadiacast and a per-user LaunchAgent for the button bridge. It replaces the terminal-launched processes only after the temporary receiver answers. The bridge will then start when this user logs in; Stadiacast starts at boot. The settings window shows whether both are running.
+
+The installed launchd files are `/Library/LaunchDaemons/com.beforesun.stadiacast.plist` and `~/Library/LaunchAgents/com.beforesun.stadia-bridge.plist`. Receiver logs are in `/Library/Logs/StadiaVoiceMouse/`; bridge logs are in `~/Library/Logs/StadiaVoiceMouse/`. This installer uses the tested LAN layout; set `STADIA_CONTROLLER_IP` and `STADIA_ROUTER_IP` if those addresses differ, and change the `en0` lookup in the script if the Mac uses a different network interface.
 
 ### Options
 

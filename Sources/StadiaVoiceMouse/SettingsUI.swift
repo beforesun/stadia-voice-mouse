@@ -16,6 +16,7 @@ private struct SettingsView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Stadia 手柄按键设置")
                 .font(.title2.bold())
+            StatusPanel()
             Text("选择每个按键在 Mac 上执行的动作。语音输入仍使用豆包的右 Command 快捷键。")
                 .foregroundStyle(.secondary)
             ScrollView {
@@ -70,7 +71,7 @@ private struct SettingsView: View {
             }
         }
         .padding(20)
-        .frame(width: 560, height: 660)
+        .frame(width: 620, height: 760)
     }
 }
 
@@ -80,7 +81,7 @@ func runSettingsWindow() {
     app.delegate = settingsAppDelegate
     app.setActivationPolicy(.regular)
     let window = NSWindow(
-        contentRect: NSRect(x: 0, y: 0, width: 560, height: 660),
+        contentRect: NSRect(x: 0, y: 0, width: 620, height: 760),
         styleMask: [.titled, .closable, .miniaturizable],
         backing: .buffered,
         defer: false
