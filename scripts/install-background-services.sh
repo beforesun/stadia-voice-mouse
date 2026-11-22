@@ -15,6 +15,8 @@ daemon_plist='/Library/LaunchDaemons/com.beforesun.stadiacast.plist'
 agent_plist="$user_home/Library/LaunchAgents/com.beforesun.stadia-bridge.plist"
 source_venv="$user_home/.local/share/uv/tools/stadiacast"
 source_python=$(/usr/bin/python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$user_home/.local/share/uv/python/cpython-3.13-macos-x86_64-none")
+bridge_app="$user_home/Applications/Stadia Voice Mouse Bridge.app"
+bridge_binary="$bridge_app/Contents/MacOS/stadia-voice-mouse"
 
 case "$mac_ip:$controller_ip:$router_ip" in
   *[!0-9.:]*) echo 'Only IPv4 addresses are supported by this installer.' >&2; exit 1 ;;
@@ -81,7 +83,7 @@ EOF
 <plist version="1.0"><dict>
   <key>Label</key><string>com.beforesun.stadia-bridge</string>
   <key>ProgramArguments</key><array>
-    <string>$project_dir/.build/release/stadia-voice-mouse</string>
+    <string>$bridge_binary</string>
     <string>--url</string><string>http://$mac_ip/_events</string>
     <string>--controller</string><string>c0</string>
     <string>--voice-keycode</string><string>54</string>
@@ -101,6 +103,29 @@ EOF
 }
 
 if [ "${1:-}" = '--prepare' ]; then prepare; exit 0; fi
+if [ "${1:-}" = '--install-bridge' ]; then
+  prepare
+  mkdir -p "$bridge_app/Contents/MacOS" "$user_home/Library/LaunchAgents" "$user_home/Library/Logs/StadiaVoiceMouse"
+  cp "$project_dir/.build/release/stadia-voice-mouse" "$bridge_binary"
+  cat > "$bridge_app/Contents/Info.plist" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleIdentifier</key><string>com.beforesun.stadia-voice-mouse.bridge</string>
+  <key>CFBundleName</key><string>Stadia Voice Mouse Bridge</string>
+  <key>CFBundleExecutable</key><string>stadia-voice-mouse</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>LSUIElement</key><true/>
+</dict></plist>
+EOF
+  codesign --force --sign - "$bridge_app"
+  cp "$stage_dir/com.beforesun.stadia-bridge.plist" "$agent_plist"
+  launchctl bootout "gui/$user_id/com.beforesun.stadia-bridge" 2>/dev/null || true
+  launchctl bootstrap "gui/$user_id" "$agent_plist"
+  echo "Installed bridge app at $bridge_app"
+  exit
+fi
 if [ "${1:-}" != '--root-install' ]; then
   prepare
   echo 'Installing requires one administrator password in this Terminal.'
@@ -151,13 +176,10 @@ fi
 echo 'Background receiver is responding.'
 
 mkdir -p "$user_home/Library/LaunchAgents"
-cp "$stage_dir/com.beforesun.stadia-bridge.plist" "$agent_plist"
-chown "$user_name":staff "$agent_plist" "$user_home/Library/Logs/StadiaVoiceMouse"
-chmod 644 "$agent_plist"
 for pid in $(pgrep -u "$user_id" -f "$project_dir/.build/release/stadia-voice-mouse --url" || true); do
   kill -TERM "$pid"
 done
-launchctl asuser "$user_id" launchctl bootstrap "gui/$user_id" "$agent_plist"
+sudo -u "$user_name" "$0" --install-bridge
 sleep 2
 launchctl asuser "$user_id" launchctl print "gui/$user_id/com.beforesun.stadia-bridge" | head -18
 echo 'Background installation complete.'

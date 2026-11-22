@@ -77,9 +77,13 @@ The current Mac uses Ethernet `en0`, a Stadia Controller at `192.168.50.189`, an
 ./scripts/install-background-services.sh
 ```
 
-This asks for a Mac administrator password in Terminal. It copies the Stadiacast Python runtime and ffmpeg into a root-owned location, tests BlackHole from a temporary launchd service on spare ports, then installs a system LaunchDaemon for Stadiacast and a per-user LaunchAgent for the button bridge. It replaces the terminal-launched processes only after the temporary receiver answers. The bridge will then start when this user logs in; Stadiacast starts at boot. The settings window shows whether both are running.
+This asks for a Mac administrator password in Terminal. It copies the Stadiacast Python runtime and ffmpeg into a root-owned location, tests BlackHole from a temporary launchd service on spare ports, then installs a system LaunchDaemon for Stadiacast and a per-user LaunchAgent for the button bridge. It replaces the terminal-launched processes only after the temporary receiver answers. The bridge will then start when this user logs in; Stadiacast starts at boot. The settings window shows whether both are running. Grant macOS Accessibility access to `~/Applications/Stadia Voice Mouse Bridge.app` in System Settings → Privacy & Security → Accessibility, then run `launchctl kickstart -k gui/$(id -u)/com.beforesun.stadia-bridge`.
+
+To rebuild and reinstall only the bridge after changing the Swift code, run `swift build -c release && ./scripts/install-background-services.sh --install-bridge`. The installer creates a signed, fixed-path app bundle so macOS keeps its Accessibility grant across launches. Replacing the app's executable may still require checking the grant again.
 
 The installed launchd files are `/Library/LaunchDaemons/com.beforesun.stadiacast.plist` and `~/Library/LaunchAgents/com.beforesun.stadia-bridge.plist`. Receiver logs are in `/Library/Logs/StadiaVoiceMouse/`; bridge logs are in `~/Library/Logs/StadiaVoiceMouse/`. This installer uses the tested LAN layout; set `STADIA_CONTROLLER_IP` and `STADIA_ROUTER_IP` if those addresses differ, and change the `en0` lookup in the script if the Mac uses a different network interface.
+
+On the tested ASUS RT-AC86U firmware, reserve the Mac's `192.168.50.85` and controller's `192.168.50.189` addresses in LAN → DHCP Server, and set only the controller's per-client DNS to `192.168.50.85`. The router stores these settings in `dhcp_staticlist` and regenerates the corresponding `dhcp-option` on dnsmasq restart. This leaves other clients' DNS unchanged. Restart the controller after saving the router settings so it obtains a new DHCP lease.
 
 ### Options
 

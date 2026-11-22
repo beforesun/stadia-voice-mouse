@@ -80,6 +80,8 @@ struct Options {
     var lastConfigCheck = Date.distantPast
     let audioInput: AudioInputSwitcher
     let micControl: MicControl
+    var pttReady = false
+    var lastPttTry = Date.distantPast
 
     init(_ options: Options) {
         self.options = options
@@ -88,7 +90,11 @@ struct Options {
         if configStamp == nil { config.pointerSpeed = options.speed }
         audioInput = AudioInputSwitcher(controllerName: options.controllerInput, keyboardName: options.keyboardInput)
         micControl = MicControl(host: options.url.host ?? "127.0.0.1", port: UInt16(options.url.port ?? 80), controller: options.controller ?? "c0")
-        if !options.dryRun && !micControl.setPtt(false) {
+        if !options.dryRun {
+            lastPttTry = Date()
+            pttReady = micControl.setPtt(false)
+        }
+        if !options.dryRun && !pttReady {
             fputs("Cannot disable Stadiacast push-to-talk. Voice toggle is unavailable.\n", stderr)
         }
     }
@@ -105,6 +111,10 @@ struct Options {
     func tick() {
         reloadConfig()
         let now = Date()
+        if !options.dryRun && !pttReady && now.timeIntervalSince(lastPttTry) >= 5 {
+            lastPttTry = now
+            pttReady = micControl.setPtt(false)
+        }
         let dt = min(0.05, max(0, now.timeIntervalSince(lastTick)))
         lastTick = now
         guard now.timeIntervalSince(lastUpdate) < 2.5, let pad else { releaseAll(); return }
@@ -169,6 +179,11 @@ struct Options {
         scrollRemainder = 0
     }
 
+    func connectionLost() {
+        releaseAll()
+        pttReady = false
+    }
+
     func stop() {
         releaseAll()
         if !options.dryRun {
@@ -203,7 +218,10 @@ struct Options {
             return
         }
         if active {
-            guard audioInput.useController(), micControl.setPtt(false), micControl.setMicrophone(true) else {
+            guard audioInput.useController() else { return }
+            lastPttTry = Date()
+            pttReady = micControl.setPtt(false)
+            guard pttReady, micControl.setMicrophone(true) else {
                 fputs("Cannot start controller microphone; voice shortcut was not sent.\n", stderr)
                 _ = audioInput.useKeyboard()
                 return
@@ -302,7 +320,7 @@ final class EventStream: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        Task { @MainActor in bridge.releaseAll() }
+        Task { @MainActor in bridge.connectionLost() }
         print("Event stream disconnected: \(error?.localizedDescription ?? "closed"); reconnecting")
         DispatchQueue.global().asyncAfter(deadline: .now() + 2) { [weak self] in self?.start() }
     }
