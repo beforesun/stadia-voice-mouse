@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import ApplicationServices
 import CoreGraphics
 import Darwin
@@ -427,4 +428,9 @@ Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { _ in
     Task { @MainActor in bridge.tick() }
 }
 print("Listening to \(options.url.absoluteString); controller \(options.controller ?? "first available")")
-RunLoop.main.run()
+if Bundle.main.bundleURL.pathExtension == "app" {
+    NSApplication.shared.setActivationPolicy(.prohibited)
+    NSApplication.shared.run()
+} else {
+    RunLoop.main.run()
+}

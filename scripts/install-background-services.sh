@@ -13,6 +13,7 @@ log_dir='/Library/Logs/StadiaVoiceMouse'
 stage_dir="$project_dir/dist/background"
 daemon_plist='/Library/LaunchDaemons/com.beforesun.stadiacast.plist'
 agent_plist="$user_home/Library/LaunchAgents/com.beforesun.stadia-bridge.plist"
+audio_agent_plist="$user_home/Library/LaunchAgents/com.beforesun.stadia-audio-recover.plist"
 source_venv="$user_home/.local/share/uv/tools/stadiacast"
 source_python=$(/usr/bin/python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$user_home/.local/share/uv/python/cpython-3.13-macos-x86_64-none")
 bridge_app="$user_home/Applications/Stadia Voice Mouse Bridge.app"
@@ -98,11 +99,34 @@ EOF
   <key>ThrottleInterval</key><integer>15</integer>
 </dict></plist>
 EOF
+  cat > "$stage_dir/com.beforesun.stadia-audio-recover.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.beforesun.stadia-audio-recover</string>
+  <key>ProgramArguments</key><array><string>$user_home/Library/Application Support/StadiaVoiceMouse/recover-audio.sh</string></array>
+  <key>EnvironmentVariables</key><dict><key>STADIA_RECEIVER_URL</key><string>http://$mac_ip/_status</string></dict>
+  <key>StartInterval</key><integer>60</integer>
+  <key>StandardOutPath</key><string>$user_home/Library/Logs/StadiaVoiceMouse/audio-recover.out.log</string>
+  <key>StandardErrorPath</key><string>$user_home/Library/Logs/StadiaVoiceMouse/audio-recover.err.log</string>
+</dict></plist>
+EOF
   for file in "$stage_dir"/*.plist; do plutil -lint "$file"; done
   echo "Prepared launchd files in $stage_dir"
 }
 
 if [ "${1:-}" = '--prepare' ]; then prepare; exit 0; fi
+if [ "${1:-}" = '--install-audio-recovery' ]; then
+  prepare
+  mkdir -p "$user_home/Library/Application Support/StadiaVoiceMouse" "$user_home/Library/LaunchAgents" "$user_home/Library/Logs/StadiaVoiceMouse"
+  cp "$project_dir/scripts/recover-audio.sh" "$user_home/Library/Application Support/StadiaVoiceMouse/recover-audio.sh"
+  chmod 755 "$user_home/Library/Application Support/StadiaVoiceMouse/recover-audio.sh"
+  cp "$stage_dir/com.beforesun.stadia-audio-recover.plist" "$audio_agent_plist"
+  launchctl bootout "gui/$user_id/com.beforesun.stadia-audio-recover" 2>/dev/null || true
+  launchctl bootstrap "gui/$user_id" "$audio_agent_plist"
+  echo 'Installed BlackHole startup recovery check.'
+  exit
+fi
 if [ "${1:-}" = '--install-bridge' ]; then
   prepare
   mkdir -p "$bridge_app/Contents/MacOS" "$user_home/Library/LaunchAgents" "$user_home/Library/Logs/StadiaVoiceMouse"
@@ -126,6 +150,7 @@ EOF
   codesign --force --sign - "$bridge_app"
   cp "$stage_dir/com.beforesun.stadia-bridge.plist" "$agent_plist"
   launchctl bootstrap "gui/$user_id" "$agent_plist"
+  "$0" --install-audio-recovery
   echo "Installed bridge app at $bridge_app"
   exit
 fi
