@@ -18,6 +18,7 @@ source_venv="$user_home/.local/share/uv/tools/stadiacast"
 source_python=$(/usr/bin/python3 -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' "$user_home/.local/share/uv/python/cpython-3.13-macos-x86_64-none")
 bridge_app="$user_home/Applications/Stadia Voice Mouse Bridge.app"
 bridge_binary="$bridge_app/Contents/MacOS/stadia-voice-mouse"
+signing_identity=${STADIA_CODESIGN_IDENTITY:-$(security find-identity -p codesigning -v 2>/dev/null | awk '/"Stadia Voice Mouse Local Signing"/ { print $2; exit }')}
 
 case "$mac_ip:$controller_ip:$router_ip" in
   *[!0-9.:]*) echo 'Only IPv4 addresses are supported by this installer.' >&2; exit 1 ;;
@@ -147,7 +148,12 @@ if [ "${1:-}" = '--install-bridge' ]; then
   <key>LSUIElement</key><true/>
 </dict></plist>
 EOF
-  codesign --force --sign - "$bridge_app"
+  if [ -n "$signing_identity" ]; then
+    codesign --force --sign "$signing_identity" "$bridge_app"
+  else
+    codesign --force --sign - "$bridge_app"
+    echo 'No stable signing identity found; macOS may require a new Accessibility grant after updates.' >&2
+  fi
   cp "$stage_dir/com.beforesun.stadia-bridge.plist" "$agent_plist"
   launchctl bootstrap "gui/$user_id" "$agent_plist"
   "$0" --install-audio-recovery
