@@ -130,12 +130,13 @@ if [ "${1:-}" = '--install-audio-recovery' ]; then
 fi
 if [ "${1:-}" = '--install-bridge' ]; then
   prepare
-  mkdir -p "$bridge_app/Contents/MacOS" "$user_home/Library/LaunchAgents" "$user_home/Library/Logs/StadiaVoiceMouse"
+  mkdir -p "$bridge_app/Contents/MacOS" "$bridge_app/Contents/Resources" "$user_home/Library/LaunchAgents" "$user_home/Library/Logs/StadiaVoiceMouse"
   launchctl bootout "gui/$user_id/com.beforesun.stadia-bridge" 2>/dev/null || true
   for pid in $(pgrep -u "$user_id" -f "^$bridge_binary --url" || true); do
     kill -TERM "$pid"
   done
   cp "$project_dir/.build/release/stadia-voice-mouse" "$bridge_binary"
+  cp "$project_dir/assets/StadiaVoiceMouseIcon.icns" "$bridge_app/Contents/Resources/StadiaVoiceMouseIcon.icns"
   cat > "$bridge_app/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -143,6 +144,7 @@ if [ "${1:-}" = '--install-bridge' ]; then
   <key>CFBundleIdentifier</key><string>com.beforesun.stadia-voice-mouse.bridge</string>
   <key>CFBundleName</key><string>Stadia Voice Mouse Bridge</string>
   <key>CFBundleExecutable</key><string>stadia-voice-mouse</string>
+  <key>CFBundleIconFile</key><string>StadiaVoiceMouseIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSUIElement</key><true/>
