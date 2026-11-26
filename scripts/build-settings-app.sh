@@ -9,7 +9,7 @@ app_dir="$project_dir/dist/Stadia Controller Settings.app"
 macos_dir="$app_dir/Contents/MacOS"
 resources_dir="$app_dir/Contents/Resources"
 mkdir -p "$macos_dir" "$resources_dir"
-cp "$project_dir/assets/StadiaVoiceMouseIcon.icns" "$resources_dir/StadiaVoiceMouseIcon.icns"
+cp "$project_dir/assets/StadiaSettingsIcon.icns" "$resources_dir/StadiaSettingsIcon.icns"
 if [ "${1:-}" = "--universal" ]; then
   swift build -c release --triple arm64-apple-macosx13.0 --build-path .build-arm64
   lipo -create .build/release/stadia-voice-mouse \
@@ -33,7 +33,7 @@ cat > "$app_dir/Contents/Info.plist" <<'EOF'
   <key>CFBundleVersion</key><string>1</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleExecutable</key><string>launcher</string>
-  <key>CFBundleIconFile</key><string>StadiaVoiceMouseIcon</string>
+  <key>CFBundleIconFile</key><string>StadiaSettingsIcon</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
 </dict></plist>
 EOF
