@@ -53,6 +53,9 @@ private struct SettingsView: View {
                     .monospacedDigit()
                     .frame(width: 48)
             }
+            Text("右摇杆：上下滚动；左推后退，右推前进。回中后可再次触发。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             HStack {
                 Text(message)
                     .font(.caption)

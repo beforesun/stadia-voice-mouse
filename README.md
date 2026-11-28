@@ -8,6 +8,7 @@ Use a Stadia Controller running its original **Wi-Fi firmware** as a mouse and a
 | --- | --- |
 | Left stick | Move pointer; radial deadzone and acceleration |
 | Right stick up/down | Scroll |
+| Right stick left/right | Browser or Finder back/forward (Command-[ / Command-]); one action per tilt, return to center to repeat |
 | A | Left mouse button (hold to drag) |
 | B | Right mouse button |
 | Assistant or L2, one press | Start Doubao dictation and the controller's built-in microphone; press again to stop |

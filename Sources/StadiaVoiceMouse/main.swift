@@ -73,6 +73,7 @@ struct Options {
     var captureDown = false
     var captureCount = 0
     var scrollRemainder = 0.0
+    var historyDirection = 0
     var l2Down = false
     var r2Down = false
     var extraDown: [ButtonAction: Bool] = [:]
@@ -127,6 +128,8 @@ struct Options {
             else { CGWarpMouseCursorPosition(point) }
         }
         let (_, sy) = stick(pad.rx, pad.ry)
+        let history = historyStep(pad.rx, latched: &historyDirection)
+        if history != 0 { tapBrowserHistory(history) }
         scrollRemainder += sy * config.scrollSpeed * dt
         let lines = Int(scrollRemainder.rounded(.towardZero))
         if lines != 0 {
@@ -178,6 +181,7 @@ struct Options {
         if voiceDown { setVoice(active: false) }
         syncButtons()
         scrollRemainder = 0
+        historyDirection = 0
     }
 
     func connectionLost() {
@@ -285,6 +289,24 @@ struct Options {
         CGEvent(keyboardEventSource: nil, virtualKey: keycode, keyDown: true)?.post(tap: .cghidEventTap)
         CGEvent(keyboardEventSource: nil, virtualKey: keycode, keyDown: false)?.post(tap: .cghidEventTap)
     }
+
+    func tapBrowserHistory(_ direction: Int) {
+        if options.dryRun { print(direction < 0 ? "history back" : "history forward"); return }
+        let keycode: CGKeyCode = direction < 0 ? 33 : 30 // Command-[ / Command-]
+        for pressed in [true, false] {
+            guard let event = CGEvent(keyboardEventSource: nil, virtualKey: keycode, keyDown: pressed) else { continue }
+            event.flags = .maskCommand
+            event.post(tap: .cghidEventTap)
+        }
+    }
+}
+
+func historyStep(_ x: Int, latched: inout Int) -> Int {
+    if (-10_000...10_000).contains(x) { latched = 0; return 0 }
+    guard latched == 0 else { return 0 }
+    if x <= -23_000 { latched = -1; return -1 }
+    if x >= 23_000 { latched = 1; return 1 }
+    return 0
 }
 
 func voiceEvent(keycode: CGKeyCode, down: Bool) -> CGEvent? {
@@ -346,6 +368,13 @@ if options.selfTest {
     precondition(selectedPad(from: events[0], controller: "c0")?.held.contains("assistant") == true)
     precondition(stick(1000, 1000).0 == 0)
     precondition(stick(30000, 0).0 > 0.5)
+    var historyLatch = 0
+    precondition(historyStep(-22_999, latched: &historyLatch) == 0)
+    precondition(historyStep(-23_000, latched: &historyLatch) == -1)
+    precondition(historyStep(-32_767, latched: &historyLatch) == 0)
+    precondition(historyStep(0, latched: &historyLatch) == 0)
+    precondition(historyStep(23_000, latched: &historyLatch) == 1)
+    precondition(historyStep(0, latched: &historyLatch) == 0)
     precondition(!triggerPressed(159, wasDown: false))
     precondition(triggerPressed(160, wasDown: false))
     precondition(triggerPressed(80, wasDown: true))
