@@ -48,7 +48,7 @@ struct Options {
             case "--keyboard-input": keyboardInput = value
             case "--controller-input": controllerInput = value
             case "--speed":
-                guard let number = Double(value), number > 0, number <= 4000 else { fatalError("Invalid speed") }
+                guard let number = Double(value), number > 0, number <= 6000 else { fatalError("Invalid speed") }
                 speed = number
             default: fatalError("Unknown argument: \(flag)")
             }

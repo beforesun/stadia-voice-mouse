@@ -41,7 +41,7 @@ private struct SettingsView: View {
             Divider()
             HStack {
                 Text("鼠标速度")
-                Slider(value: $config.pointerSpeed, in: 300...3000, step: 50)
+                Slider(value: $config.pointerSpeed, in: 300...6000, step: 50)
                 Text("\(Int(config.pointerSpeed))")
                     .monospacedDigit()
                     .frame(width: 48)
